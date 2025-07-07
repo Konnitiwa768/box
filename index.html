@@ -51,7 +51,7 @@ const fruitThresholds = [
   new Decimal("1.1e9"), new Decimal("1.03e12"), new Decimal("1.15e15"), new Decimal("2.1e18"),
   new Decimal("1.56e21"), new Decimal("3.47e24"), new Decimal("9.856e26")
 ];
-const fruitCoinValues = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987]; // 適当な例：果物ごとにコイン量違う
+const fruitCoinValues = [1, 9, 20, 100, 490, 1100, 3000, 7.4e5, 3e6, 4e8, 1.07e9, 1.1158e11, 2e13, 2.4e14, 1.6e15]; // 適当な例：果物ごとにコイン量違う
 
 let state = {
   coins: new Decimal(100),
@@ -116,8 +116,8 @@ function gameLoop() {
   // 日本くん移動
   japan.x += japan.vx;
   japan.y += japan.vy;
-  if (japan.x < 0 || japan.x > canvas.width - 50) japan.vx *= -1;
-  if (japan.y < 0 || japan.y > canvas.height - 50) japan.vy *= -1;
+  if (japan.x < 0 || japan.x > canvas.width - 100) japan.vx *= -1;
+  if (japan.y < 0 || japan.y > canvas.height - 110) japan.vy *= -1;
 
   ctx.drawImage(japanSVG, japan.x, japan.y, 50, 50);
 
