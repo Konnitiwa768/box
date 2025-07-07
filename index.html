@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>日本・ポーランドボールの平和な森</title>
+<style>
+  canvas { background: #8fce8f; display: block; margin: 0 auto; }
+  #ui { text-align: center; font-size: 18px; margin-top: 10px; }
+  button { margin: 5px; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/decimal.js@10.4.3/decimal.min.js"></script>
+</head>
+<body>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<div id="ui">
+  <div>コイン: <span id="coins">0</span></div>
+  <div>果物討伐数: <span id="defeated">0</span></div>
+  <div>名声レベル: <span id="fame">0</span></div>
+  <div>日本くん強化レベル: <span id="japanLevel">0</span></div>
+  <button id="buyJapan">日本くん強化購入 (<span id="japanCost">70</span>コイン)</button>
+  <button id="rebirth">転生 (必要: <span id="rebirthCost">1.00T</span>)</button>
+</div>
+
+<script>
+var formatLong=[' thousand',' million',' billion',' trillion',' quadrillion',' quintillion',' sextillion',' septillion',' octillion',' nonillion'];
+var prefixes=['','un','duo','tre','quattuor','quin','sex','septen','octo','novem'];
+var suffixes=['decillion','vigintillion','trigintillion','quadragintillion','quinquagintillion','sexagintillion','septuagintillion','octogintillion','nonagintillion'];
+for (var i in suffixes) {
+  for (var ii in prefixes) {
+    formatLong.push(' ' + prefixes[ii] + suffixes[i]);
+  }
+}
+
+function formatNumber(n) {
+  if (n < 1000) return n.toFixed(2);
+  let index = 0;
+  while (n >= 1000 && index < formatLong.length - 1) {
+    n /= 1000;
+    index++;
+  }
+  return n.toFixed(2) + formatLong[index];
+}
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const fruitEmojis = ['🍎','🍊','🍌','🍇','🍓','🍍','🥭','🍑','🍒','🍈','🥝','🍉','🍋','🍐','🍏'];
+const fruitThresholds = [
+  new Decimal(1), new Decimal(12), new Decimal(100), new Decimal(800), new Decimal(2500),
+  new Decimal(11200), new Decimal(195000), new Decimal(3600000), new Decimal(90000000),
+  new Decimal("1.1e9"), new Decimal("1.03e12"), new Decimal("1.15e15"), new Decimal("2.1e18"),
+  new Decimal("1.56e21"), new Decimal("3.47e24"), new Decimal("9.856e26")
+];
+const fruitCoinValues = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987]; // 適当な例：果物ごとにコイン量違う
+
+let state = {
+  coins: new Decimal(100),
+  defeated: new Decimal(0),
+  fame: 0,
+  japanLevel: 0,
+};
+
+let fruits = [];
+let japanCost = new Decimal(70);
+
+let japan = {
+  x: canvas.width / 2,
+  y: canvas.height / 2,
+  vx: (Math.random() - 0.5) * 2,
+  vy: (Math.random() - 0.5) * 2
+};
+
+const japanSVG = new Image();
+const svgData = `<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50'><circle cx='25' cy='25' r='20' fill='white'/><circle cx='25' cy='25' r='10' fill='red'/></svg>`;
+japanSVG.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+
+function spawnFruit() {
+  const index = getNextFruitIndex(state.defeated);
+  const fruit = {
+    x: Math.random() * (canvas.width - 30) + 15,
+    y: Math.random() * (canvas.height - 30) + 15,
+    type: Math.floor(Math.random() * index)
+  };
+  fruits.push(fruit);
+}
+
+function getNextFruitIndex(totalDefeated) {
+  for (let i = fruitThresholds.length - 1; i >= 0; i--) {
+    if (totalDefeated.gte(fruitThresholds[i])) {
+      return Math.min(i + 1, 15);
+    }
+  }
+  return 1;
+}
+
+function getFameRequirement(level) {
+  return new Decimal("1e12").times(Decimal(1.25).pow(level));
+}
+
+function getJapanStrength(level) {
+  return new Decimal(70).times(Decimal(3.4).pow(level));
+}
+
+function updateUI() {
+  document.getElementById('coins').innerText = formatNumber(state.coins.toNumber());
+  document.getElementById('defeated').innerText = formatNumber(state.defeated.toNumber());
+  document.getElementById('fame').innerText = state.fame;
+  document.getElementById('japanLevel').innerText = state.japanLevel;
+  document.getElementById('japanCost').innerText = formatNumber(japanCost.toNumber());
+  document.getElementById('rebirthCost').innerText = formatNumber(getFameRequirement(state.fame).toNumber());
+}
+
+function gameLoop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 日本くん移動
+  japan.x += japan.vx;
+  japan.y += japan.vy;
+  if (japan.x < 0 || japan.x > canvas.width - 50) japan.vx *= -1;
+  if (japan.y < 0 || japan.y > canvas.height - 50) japan.vy *= -1;
+
+  ctx.drawImage(japanSVG, japan.x, japan.y, 50, 50);
+
+  ctx.font = "24px serif";
+  fruits.forEach(fruit => {
+    ctx.fillText(fruitEmojis[fruit.type], fruit.x, fruit.y);
+  });
+
+  requestAnimationFrame(gameLoop);
+}
+
+canvas.addEventListener('click', function(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  fruits.forEach((fruit, index) => {
+    const dist = Math.hypot(fruit.x - x, fruit.y - y);
+    if (dist < 20) {
+      const baseCoin = new Decimal(fruitCoinValues[fruit.type]);
+      const bonus = Decimal(1.5).pow(state.fame);
+      state.coins = state.coins.plus(baseCoin.times(bonus));
+      state.defeated = state.defeated.plus(1);
+      fruits.splice(index, 1);
+      spawnFruit();
+      updateUI();
+    }
+  });
+});
+
+document.getElementById('buyJapan').onclick = () => {
+  if (state.coins.gte(japanCost)) {
+    state.coins = state.coins.minus(japanCost);
+    state.japanLevel++;
+    japanCost = getJapanStrength(state.japanLevel);
+    updateUI();
+  }
+};
+
+document.getElementById('rebirth').onclick = () => {
+  const req = getFameRequirement(state.fame);
+  if (state.coins.gte(req)) {
+    state.coins = new Decimal(100);
+    state.defeated = new Decimal(0);
+    state.fame++;
+    state.japanLevel = 0;
+    japanCost = new Decimal(70);
+    fruits = [];
+    spawnFruit();
+    updateUI();
+  }
+};
+
+function saveGame() {
+  localStorage.setItem('peaceGameSave', JSON.stringify({
+    coins: state.coins.toString(),
+    defeated: state.defeated.toString(),
+    fame: state.fame,
+    japanLevel: state.japanLevel,
+    japanCost: japanCost.toString()
+  }));
+}
+
+function loadGame() {
+  const raw = localStorage.getItem('peaceGameSave');
+  if (raw) {
+    const data = JSON.parse(raw);
+    state.coins = new Decimal(data.coins);
+    state.defeated = new Decimal(data.defeated);
+    state.fame = data.fame;
+    state.japanLevel = data.japanLevel;
+    japanCost = new Decimal(data.japanCost);
+  }
+}
+
+loadGame();
+updateUI();
+spawnFruit();
+gameLoop();
+setInterval(saveGame, 5000);
+</script>
+</body>
+</html>
